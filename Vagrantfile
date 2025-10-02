@@ -10,6 +10,9 @@ Vagrant.configure("2") do |config|
       vb.cpus = 4
     end
     master.vm.provision "shell", path: "bootstrap.atrox-gateway-hpc-master.sh"
+    master.ssh.insert_key = false
+    master.ssh.username = "vagrant"
+    master.ssh.password = ENV['VM_PASSWORD']
   end
   
   config.vm.box = "ubuntu/focal64"
@@ -21,6 +24,9 @@ Vagrant.configure("2") do |config|
       vb.cpus = 4
     end
     app.vm.provision "shell", path: "bootstrap-atrox-gateway-app.sh"
+    app.ssh.insert_key = false
+    app.ssh.username = "vagrant"
+    app.ssh.password = ENV['VM_PASSWORD']
   end
 end
 
