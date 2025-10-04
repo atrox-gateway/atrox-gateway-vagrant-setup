@@ -6,8 +6,8 @@ Vagrant.configure("2") do |config|
     master.vm.hostname = "hpc-master"
     master.vm.network "private_network", ip: "192.168.56.2"
     master.vm.provider "virtualbox" do |vb|
-      vb.memory = 2048
-      vb.cpus = 4
+      vb.memory = 4096
+      vb.cpus = 8
     end
     master.vm.provision "shell", path: "bootstrap.atrox-gateway-hpc-master.sh"
     master.ssh.insert_key = false
@@ -20,8 +20,8 @@ Vagrant.configure("2") do |config|
     app.vm.hostname = "app"
     app.vm.network "private_network", ip: "192.168.56.3"
     app.vm.provider "virtualbox" do |vb|
-      vb.memory = 2048
-      vb.cpus = 4
+      vb.memory = 4096
+      vb.cpus = 8
     end
     app.vm.provision "shell", path: "bootstrap-atrox-gateway-app.sh"
     app.ssh.insert_key = false

@@ -4,17 +4,18 @@ set -e
 DIRECTORY="/vagrant/shared/"
 
 sudo apt-get update -y
-sudo apt-get install -y slurm-wlm munge sshpass nfs-kernel-server
+sudo apt-get install -y slurm-wlm munge sshpass nfs-kernel-server slurmdbd mariadb-server
 
 echo "192.168.56.2 hpc-master" | sudo tee -a /etc/hosts
 echo "192.168.56.3 app" | sudo tee -a /etc/hosts
 
-sudo useradd -m -s /bin/bash -u 1010 atroxgateway && echo "atroxgateway:P@ssw0rd123!" | sudo chpasswd
+sudo useradd -m -s /bin/bash -u 1002 atroxgateway && echo "atroxgateway:P@ssw0rd123!" | sudo chpasswd
 sudo usermod -aG sudo atroxgateway
 sudo cp /etc/skel/.bashrc /home/atroxgateway/.bashrc
 sudo chown atroxgateway:atroxgateway /home/atroxgateway/.bashrc
 
-sudo mkdir -p /etc/slurm
+sudo mkdir -p /etc/slurm-llnl
+
 cat <<EOF | sudo tee /etc/slurm-llnl/slurm.conf
 ClusterName=hpc-master
 ControlMachine=hpc-master
@@ -28,10 +29,36 @@ SwitchType=switch/none
 MpiDefault=none
 SlurmctldDebug=info
 SlurmdDebug=info
+JobAcctGatherType=jobacct_gather/linux
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStorageHost=localhost
 ProctrackType=proctrack/linuxproc
 NodeName=hpc-master CPUs=1 State=UNKNOWN
 PartitionName=MasterNode Nodes=hpc-master Default=YES MaxTime=INFINITE State=UP
 EOF
+
+cat <<EOF | sudo tee /etc/slurm-llnl/slurmdbd.conf
+AuthType=auth/munge
+DbdHost=localhost
+SlurmUser=slurm
+StorageType=accounting_storage/mysql
+StorageHost=localhost
+StoragePort=3306
+StoragePass=slurm
+StorageUser=slurm
+StorageLoc=slurm_acct_db
+EOF
+
+sudo chown slurm:slurm /etc/slurm-llnl/slurmdbd.conf
+sudo chmod 600 /etc/slurm-llnl/slurmdbd.conf
+
+sudo mysql -e "CREATE DATABASE IF NOT EXISTS slurm_acct_db;"
+sudo mysql -e "CREATE USER IF NOT EXISTS 'slurm'@'localhost' IDENTIFIED BY 'slurm';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON slurm_acct_db.* TO 'slurm'@'localhost';"
+sudo mysql -e "FLUSH PRIVILEGES;"
+sudo systemctl enable mariadb
+sudo systemctl start mariadb
+
 sudo mkdir -p /var/spool/slurm /var/spool/slurmd
 sudo chown slurm:slurm /var/spool/slurm /var/spool/slurmd
 
@@ -59,7 +86,17 @@ if [ -f /etc/ssh/sshd_config.d/60-cloudimg-settings.conf ]; then
 fi
 sudo systemctl restart sshd
 
-sudo systemctl enable munge slurmctld slurmd
+sudo systemctl enable munge slurmctld slurmd slurmdbd
 sudo systemctl restart munge
+sudo systemctl restart slurmdbd
 sudo systemctl restart slurmctld
 sudo systemctl restart slurmd
+echo "Esperando a que slurmdbd inicie 5 segundos... "
+sleep 5
+sudo sacctmgr -i add cluster hpc-master
+sudo sacctmgr -i add user atroxgateway Account=root
+#If sinfo -> slurm_load_partitions: Unable to contact slurm controller (connect failure)
+#sudo mysql -e "GRANT ALL PRIVILEGES ON slurm_acct_db.* TO 'slurm'@'localhost';"
+#sudo systemctl restart munge 
+#sudo systemctl restart slurmdbd 
+#sudo systemctl restart slurmctld
