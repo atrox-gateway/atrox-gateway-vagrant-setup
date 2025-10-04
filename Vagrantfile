@@ -11,7 +11,7 @@ Vagrant.configure("2") do |config|
     end
     master.vm.provision "shell", path: "bootstrap.atrox-gateway-hpc-master.sh"
     master.ssh.insert_key = false
-    master.ssh.username = "vagrant"
+    master.ssh.username = ENV['VM_USERNAME']
     master.ssh.password = ENV['VM_PASSWORD']
   end
   
@@ -25,7 +25,7 @@ Vagrant.configure("2") do |config|
     end
     app.vm.provision "shell", path: "bootstrap-atrox-gateway-app.sh"
     app.ssh.insert_key = false
-    app.ssh.username = "vagrant"
+    app.ssh.username = ENV['VM_USERNAME']
     app.ssh.password = ENV['VM_PASSWORD']
   end
 end
