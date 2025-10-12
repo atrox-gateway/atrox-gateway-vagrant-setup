@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
-sudo apt-get update -y
-sudo apt-get install -y slurm-client munge nfs-common curl nginx build-essential libpam0g-dev
+# Script de bootstrap para la VM "app" del Atrox Gateway
+# Este script instala y configura los servicios necesarios
+# para el entorno de desarrollo del Atrox Gateway.
+
+# Variables
+REPO_PATH="/opt/atrox-gateway"
+SHARED_PATH="/vagrant/shared"
+
+sudo apt update -y
+sudo apt install -y git nginx redis-server slurm-client munge nfs-common curl sshpass build-essential libpam0g-dev
 
 echo "192.168.56.2 hpc-master" | sudo tee -a /etc/hosts
 echo "192.168.56.3 app" | sudo tee -a /etc/hosts
@@ -21,16 +29,46 @@ alias hpc='cd /hpc_home/\$USER'
 EOF
 sudo chown -R atroxgateway:atroxgateway /home/atroxgateway/
 
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-nvm install 18
+# 3. Creación de Usuarios de Servicio de Linux (para min. privilegio)
+#sudo useradd -r -s /sbin/nologin gateway-manager
+#sudo useradd -r -s /sbin/nologin mgmt-service
+sudo usermod -aG www-data atroxgateway
 
-sudo ln -sf /root/.nvm/versions/node/v18.20.8/bin/node /usr/local/bin/node
-sudo ln -sf /root/.nvm/versions/node/v18.20.8/bin/npx /usr/local/bin/npx
+git clone https://github.com/atrox-gateway/atrox-gateway-app.git "$REPO_PATH"
 
+#sudo chown -R gateway-manager:gateway-manager "$REPO_PATH"/packages/backend/atrox-services
+#sudo chown -R mgmt-service:mgmt-service "$REPO_PATH"/packages/backend/atrox-admin-services
+#sudo chown -R gateway-manager:gateway-manager "$REPO_PATH"/scripts/
+#sudo chmod -R o+rX "$REPO_PATH"/packages/backend/atrox-user-pun""
+
+sudo mkdir -p /var/run/atrox-puns
+sudo chown atroxgateway:www-data /var/run/atrox-puns
+sudo chmod 770 /var/run/atrox-puns
+
+sudo rm -f /etc/nginx/sites-enabled/default
+
+# Ensure common nginx directories and include files exist so `nginx -t` doesn't fail
+sudo mkdir -p /etc/nginx/puns-enabled /etc/nginx/sites-enabled /etc/nginx/conf.d
+if [ ! -f /etc/nginx/user_map.conf ]; then
+    sudo install -m 644 /dev/null /etc/nginx/user_map.conf
+    echo "# user_map.conf - generated placeholder" | sudo tee /etc/nginx/user_map.conf > /dev/null
+fi
+sudo chown atroxgateway:www-data /etc/nginx/user_map.conf
+
+# Ensure a public directory exists for the frontend root referenced in the config
+sudo mkdir -p /var/www/atrox-ui
+sudo chown -R www-data:www-data /var/www/atrox-ui || true
+sudo bash -c 'echo "<html><body><h1>Atrox Gateway - Frontend OK</h1></body></html>" > /var/www/atrox-ui/index.html'
+
+# Also enable the app.conf site so the default_server in it is active (safe - it will be symlinked)
+#sudo ln -sf /etc/nginx/sites-available/app.conf /etc/nginx/sites-enabled/app.conf
+
+sudo nginx -t && sudo systemctl restart nginx
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+
+# Configurar Slurm para usar el nodo maestro como el único nodo de cómputo
 sudo mkdir -p /etc/slurm-llnl
-
 cat <<EOF | sudo tee /etc/slurm-llnl/slurm.conf
 ClusterName=hpc-master
 ControlMachine=hpc-master
@@ -50,7 +88,6 @@ ProctrackType=proctrack/linuxproc
 NodeName=hpc-master CPUs=1 State=UNKNOWN
 PartitionName=MasterNode Nodes=hpc-master Default=YES MaxTime=INFINITE State=UP
 EOF
-
 sudo mkdir -p /var/spool/slurm /var/spool/slurmd
 sudo chown slurm:slurm /var/spool/slurm /var/spool/slurmd
 
@@ -135,6 +172,12 @@ server {
         proxy_set_header Connection "Upgrade";
         proxy_set_header Host $host;
     }
+
+    location / {
+        root /var/www/atrox-ui;
+        index index.html index.htm;
+        try_files $uri $uri/ /index.html;
+    }
 }
 EOF
 
@@ -143,3 +186,6 @@ sudo systemctl restart nginx
 
 sudo systemctl enable munge
 sudo systemctl restart munge
+
+sudo chmod a+x "$REPO_PATH"/install.sh
+. "$REPO_PATH"/install.sh
