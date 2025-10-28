@@ -10,7 +10,7 @@ REPO_PATH="/opt/atrox-gateway"
 SHARED_PATH="/vagrant/shared"
 
 sudo apt update -y
-sudo apt install -y git nginx redis-server slurm-client munge nfs-common curl sshpass build-essential libpam0g-dev
+sudo apt install -y git nginx redis-server slurm-client munge nfs-common curl sshpass build-essential libpam0g-dev sshpass
 
 echo "192.168.56.2 hpc-master" | sudo tee -a /etc/hosts
 echo "192.168.56.3 app" | sudo tee -a /etc/hosts
@@ -28,6 +28,9 @@ echo ""
 alias hpc='cd /hpc_home/\$USER'
 EOF
 sudo chown -R atroxgateway:atroxgateway /home/atroxgateway/
+
+sudo -u atroxgateway ssh-keygen -t rsa -b 2048 -N "" -f /home/atroxgateway/.ssh/id_rsa <<< y || true 
+sudo -u atroxgateway sshpass -p 'P@ssw0rd123!' ssh-copy-id -o StrictHostKeyChecking=no atroxgateway@hpc-master
 
 # 3. Creación de Usuarios de Servicio de Linux (para min. privilegio)
 #sudo useradd -r -s /sbin/nologin gateway-manager

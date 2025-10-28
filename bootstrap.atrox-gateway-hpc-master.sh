@@ -14,6 +14,10 @@ sudo usermod -aG sudo atroxgateway
 sudo cp /etc/skel/.bashrc /home/atroxgateway/.bashrc
 sudo chown atroxgateway:atroxgateway /home/atroxgateway/.bashrc
 
+echo "atroxgateway ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/atroxgateway
+echo "Defaults:atroxgateway !requiretty" | sudo tee -a /etc/sudoers.d/atroxgateway
+sudo chmod 0440 /etc/sudoers.d/atroxgateway
+
 sudo mkdir -p /etc/slurm-llnl
 
 cat <<EOF | sudo tee /etc/slurm-llnl/slurm.conf
@@ -94,7 +98,9 @@ sudo systemctl restart slurmd
 echo "Esperando a que slurmdbd inicie 5 segundos... "
 sleep 5
 sudo sacctmgr -i add cluster hpc-master
-sudo sacctmgr -i add user atroxgateway Account=root
+sudo sacctmgr -i add account admin Description="Cuenta para administradores"
+sudo sacctmgr -i add account default Description="Default user account"
+sudo sacctmgr -i add user atroxgateway Account=admin
 #If sinfo -> slurm_load_partitions: Unable to contact slurm controller (connect failure)
 #sudo mysql -e "GRANT ALL PRIVILEGES ON slurm_acct_db.* TO 'slurm'@'localhost';"
 #sudo systemctl restart munge 
