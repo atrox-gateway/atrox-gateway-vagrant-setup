@@ -1,26 +1,60 @@
 Vagrant.configure("2") do |config|
   config.vm.synced_folder "./shared", "/shared", type: "rsync", rsync__auto: true
   
-  config.vm.define "master" do |master|
-    master.vm.box = "ubuntu/focal64"
-    master.vm.hostname = "hpc-master"
-    master.vm.network "private_network", ip: "192.168.56.2"
-    master.vm.provider "virtualbox" do |vb|
-      vb.memory = 4096
-      vb.cpus = 8
+  config.vm.define "node-storage" do |storage|
+    storage.vm.box = "ubuntu/focal64"
+    storage.vm.hostname = "node-storage"
+    storage.vm.network "private_network", ip: "192.168.56.12"
+    storage.vm.provider "virtualbox" do |vb|
+      vb.memory = 1024
+      vb.cpus = 1
     end
-    master.vm.provision "shell", path: "bootstrap.atrox-gateway-hpc-master.sh"
+    storage.vm.provision "shell", path: "bootstrap-atrox-gateway-node-storage.sh"
+  end
+  
+  config.vm.define "node-login" do |login|
+    login.vm.box = "ubuntu/focal64"
+    login.vm.hostname = "node-login"
+    login.vm.network "private_network", ip: "192.168.56.11"
+    login.vm.provider "virtualbox" do |vb|
+      vb.memory = 1024
+      vb.cpus = 1
+    end
+    login.vm.provision "shell", path: "bootstrap-atrox-gateway-node-login.sh"
+  end
+
+  config.vm.define "node-01" do |node01|
+    node01.vm.box = "ubuntu/focal64"
+    node01.vm.hostname = "node-01"
+    node01.vm.network "private_network", ip: "192.168.56.13"
+    node01.vm.provider "virtualbox" do |vb|
+      vb.memory = 2048
+      vb.cpus = 2
+    end
+    node01.vm.provision "shell", path: "bootstrap-atrox-gateway-node-worker.sh"
+  end
+
+  config.vm.define "node-02" do |node02|
+    node02.vm.box = "ubuntu/focal64"
+    node02.vm.hostname = "node-02"
+    node02.vm.network "private_network", ip: "192.168.56.14"
+    node02.vm.provider "virtualbox" do |vb|
+      vb.memory = 2048
+      vb.cpus = 2
+    end
+    node02.vm.provision "shell", path: "bootstrap-atrox-gateway-node-worker.sh"
   end
   
   config.vm.box = "ubuntu/focal64"
-  config.vm.define "app" do |app|
-    app.vm.hostname = "app"
-    app.vm.network "private_network", ip: "192.168.56.3"
+  config.vm.define "node-app" do |app|
+    app.vm.hostname = "node-app"
+    app.vm.network "private_network", ip: "192.168.56.10"
+    app.vm.network "public_network", bridge: "wlp6s0", auto_config: true
     app.vm.provider "virtualbox" do |vb|
       vb.memory = 4096
-      vb.cpus = 8
+      vb.cpus = 4
     end
-    app.vm.provision "shell", path: "bootstrap-atrox-gateway-app.sh"
+    app.vm.provision "shell", path: "bootstrap-atrox-gateway-node-app.sh"
   end
 end
 
