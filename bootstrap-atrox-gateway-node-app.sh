@@ -80,9 +80,10 @@ SlurmdDebug=info
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=node-login
 ProctrackType=proctrack/linuxproc
-NodeName=node-01 CPUs=2 State=UNKNOWN
-NodeName=node-02 CPUs=2 State=UNKNOWN
-PartitionName=compute Nodes=node-01,node-02 Default=YES MaxTime=INFINITE State=UP
+NodeName=node-01 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=1024 State=UNKNOWN
+NodeName=node-02 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=1024 State=UNKNOWN
+PartitionName=debug Nodes=node-01,node-02 Default=YES MaxTime=01:00:00 PriorityTier=100 State=UP
+PartitionName=batch Nodes=node-01,node-02 MaxTime=INFINITE PriorityTier=50 State=UP
 EOF
 sudo mkdir -p /var/spool/slurm /var/spool/slurmd
 sudo chown slurm:slurm /var/spool/slurm /var/spool/slurmd

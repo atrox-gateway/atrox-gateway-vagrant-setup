@@ -4,7 +4,7 @@ set -e
 DIRECTORY="/vagrant/shared/"
 
 sudo apt-get update -y
-sudo apt-get install -y slurm-wlm munge sshpass nfs-common slurmdbd mariadb-server
+sudo apt-get install -y slurm-wlm munge sshpass nfs-common slurmdbd mariadb-server build-essential gcc g++ make
 
 echo "192.168.56.10 node-app" | sudo tee -a /etc/hosts
 echo "192.168.56.11 node-login" | sudo tee -a /etc/hosts
@@ -22,7 +22,6 @@ echo "Defaults:atroxgateway !requiretty" | sudo tee -a /etc/sudoers.d/atroxgatew
 sudo chmod 0440 /etc/sudoers.d/atroxgateway
 
 sudo mkdir -p /etc/slurm-llnl
-
 cat <<EOF | sudo tee /etc/slurm-llnl/slurm.conf
 ClusterName=leo-atrox
 ControlMachine=node-login
@@ -39,9 +38,10 @@ SlurmdDebug=info
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=node-login
 ProctrackType=proctrack/linuxproc
-NodeName=node-01 CPUs=2 State=UNKNOWN
-NodeName=node-02 CPUs=2 State=UNKNOWN
-PartitionName=compute Nodes=node-01,node-02 Default=YES MaxTime=INFINITE State=UP
+NodeName=node-01 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=1499 State=UNKNOWN
+NodeName=node-02 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=1499 State=UNKNOWN
+PartitionName=debug Nodes=node-01,node-02 Default=YES MaxTime=01:00:00 PriorityTier=100 State=UP
+PartitionName=batch Nodes=node-01,node-02 MaxTime=INFINITE PriorityTier=50 State=UP
 EOF
 
 cat <<EOF | sudo tee /etc/slurm-llnl/slurmdbd.conf
@@ -115,6 +115,7 @@ sudo sacctmgr -i add cluster leo-atrox
 sudo sacctmgr -i add account admin Description="Cuenta para administradores"
 sudo sacctmgr -i add account default Description="Default user account"
 sudo sacctmgr -i add user atroxgateway Account=admin AdminLevel=Administrator
+sudo systemctl restart slurmctld
 #If sinfo -> slurm_load_partitions: Unable to contact slurm controller (connect failure)
 #sudo mysql -e "GRANT ALL PRIVILEGES ON slurm_acct_db.* TO 'slurm'@'localhost';"
 #sudo systemctl restart munge 
