@@ -18,7 +18,11 @@ echo "192.168.56.12 node-storage" | sudo tee -a /etc/hosts
 echo "192.168.56.13 node-01" | sudo tee -a /etc/hosts
 echo "192.168.56.14 node-02" | sudo tee -a /etc/hosts
 
-sudo useradd -m -s /bin/bash -u 1002 atroxgateway && echo "atroxgateway:P@ssw0rd123!" | sudo chpasswd
+if [ -z "${ATROX_PASSWORD:-}" ]; then
+    echo "ERROR: ATROX_PASSWORD is not set. Export it on the host before running vagrant up. Example: export ATROX_PASSWORD='your-password'" >&2
+    exit 1
+fi
+sudo useradd -m -s /bin/bash -u 1002 atroxgateway && echo "atroxgateway:${ATROX_PASSWORD}" | sudo chpasswd
 sudo usermod -aG sudo atroxgateway
 sudo cp /etc/skel/.bashrc /home/atroxgateway/.bashrc
 cat <<EOF | sudo tee -a /home/atroxgateway/.bash_profile
@@ -33,10 +37,10 @@ EOF
 sudo chown -R atroxgateway:atroxgateway /home/atroxgateway/
 
 sudo -u atroxgateway ssh-keygen -t rsa -b 2048 -N "" -f /home/atroxgateway/.ssh/id_rsa <<< y || true 
-sudo -u atroxgateway sshpass -p 'P@ssw0rd123!' ssh-copy-id -o StrictHostKeyChecking=no atroxgateway@node-login
-sudo -u atroxgateway sshpass -p 'P@ssw0rd123!' ssh-copy-id -o StrictHostKeyChecking=no atroxgateway@node-storage
-sudo -u atroxgateway sshpass -p 'P@ssw0rd123!' ssh-copy-id -o StrictHostKeyChecking=no atroxgateway@node-01
-sudo -u atroxgateway sshpass -p 'P@ssw0rd123!' ssh-copy-id -o StrictHostKeyChecking=no atroxgateway@node-02
+sudo -u atroxgateway sshpass -p "${ATROX_PASSWORD}" ssh-copy-id -o StrictHostKeyChecking=no atroxgateway@node-login
+sudo -u atroxgateway sshpass -p "${ATROX_PASSWORD}" ssh-copy-id -o StrictHostKeyChecking=no atroxgateway@node-storage
+sudo -u atroxgateway sshpass -p "${ATROX_PASSWORD}" ssh-copy-id -o StrictHostKeyChecking=no atroxgateway@node-01
+sudo -u atroxgateway sshpass -p "${ATROX_PASSWORD}" ssh-copy-id -o StrictHostKeyChecking=no atroxgateway@node-02
 
 sudo usermod -aG www-data atroxgateway
 
@@ -80,9 +84,10 @@ SlurmdDebug=info
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=node-login
 ProctrackType=proctrack/linuxproc
-NodeName=node-01 CPUs=2 State=UNKNOWN
-NodeName=node-02 CPUs=2 State=UNKNOWN
-PartitionName=compute Nodes=node-01,node-02 Default=YES MaxTime=INFINITE State=UP
+NodeName=node-01 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=1024 State=UNKNOWN
+NodeName=node-02 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=1024 State=UNKNOWN
+PartitionName=debug Nodes=node-01,node-02 Default=YES MaxTime=01:00:00 PriorityTier=100 State=UP
+PartitionName=batch Nodes=node-01,node-02 MaxTime=INFINITE PriorityTier=50 State=UP
 EOF
 sudo mkdir -p /var/spool/slurm /var/spool/slurmd
 sudo chown slurm:slurm /var/spool/slurm /var/spool/slurmd

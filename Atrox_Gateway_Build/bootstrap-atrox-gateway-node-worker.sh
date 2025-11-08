@@ -3,6 +3,11 @@ set -e
 
 sudo apt-get update -y
 sudo apt-get install -y slurm-client slurmd munge nfs-common sshpass
+sudo apt install -y python3 python3-venv python3-pip python3-dev build-essential gfortran\
+  openmpi-bin libopenmpi-dev openmpi-common libblas-dev liblapack-dev
+  
+pip install numpy scipy pandas matplotlib h5py netcdf4 mpi4py numba cython pytest pytest-xdist \
+    dask[complete] joblib prometheus-client
 
 echo "192.168.56.10 app" | sudo tee -a /etc/hosts
 echo "192.168.56.11 node-login" | sudo tee -a /etc/hosts
@@ -10,7 +15,11 @@ echo "192.168.56.12 node-storage" | sudo tee -a /etc/hosts
 echo "192.168.56.13 node-01" | sudo tee -a /etc/hosts
 echo "192.168.56.14 node-02" | sudo tee -a /etc/hosts
 
-sudo useradd -m -s /bin/bash -u 1002 atroxgateway && echo "atroxgateway:P@ssw0rd123!" | sudo chpasswd
+if [ -z "${ATROX_PASSWORD:-}" ]; then
+  echo "ERROR: ATROX_PASSWORD is not set. Export it on the host before running vagrant up. Example: export ATROX_PASSWORD='your-password'" >&2
+  exit 1
+fi
+sudo useradd -m -s /bin/bash -u 1002 atroxgateway && echo "atroxgateway:${ATROX_PASSWORD}" | sudo chpasswd
 sudo usermod -aG sudo atroxgateway
 echo "atroxgateway ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/atroxgateway
 echo "Defaults:atroxgateway !requiretty" | sudo tee -a /etc/sudoers.d/atroxgateway
@@ -33,9 +42,10 @@ SlurmdDebug=info
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=node-login
 ProctrackType=proctrack/linuxproc
-NodeName=node-01 CPUs=2 State=UNKNOWN
-NodeName=node-02 CPUs=2 State=UNKNOWN
-PartitionName=compute Nodes=node-01,node-02 Default=YES MaxTime=INFINITE State=UP
+NodeName=node-01 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=1024 State=UNKNOWN
+NodeName=node-02 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=1024 State=UNKNOWN
+PartitionName=debug Nodes=node-01,node-02 Default=YES MaxTime=01:00:00 PriorityTier=100 State=UP
+PartitionName=batch Nodes=node-01,node-02 MaxTime=INFINITE PriorityTier=50 State=UP
 EOF
 
 sudo mkdir -p /var/spool/slurm /var/spool/slurmd
